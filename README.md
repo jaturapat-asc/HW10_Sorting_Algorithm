@@ -72,7 +72,7 @@
 ## 🚀 วิธีการเปิดใช้งาน (How to Run)
 
 1. **เปิดเล่นบนเครื่องคอมพิวเตอร์:**
-   * ดาวน์โหลดไฟล์ `detective_sort.html`
+   * ดาวน์โหลดไฟล์ `detective_sort.html`หรือ `index.html`
    * ดับเบิลคลิกเปิดไฟล์ด้วยเว็บเบราว์เซอร์ใดก็ได้ (Chrome, Edge, Firefox, Safari)
 2. **การโฮสต์ผ่าน GitHub Pages:**
    * อัปโหลดไฟล์ขึ้น GitHub Repository แล้วเปลี่ยนชื่อไฟล์เป็น `index.html`
