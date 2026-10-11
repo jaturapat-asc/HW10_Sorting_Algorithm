@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detective Sort: แฟ้มคดีปริศนาอัลกอริทึม</title>
+  <!-- Google Fonts & Tailwind CSS (CDN) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Sarabun', 'sans-serif'],
+            mono: ['Chakra Petch', 'monospace'],
+          },
+          colors: {
+            detective: {
+              board: '#2b1d0c',
+              cork: '#c89d68',
+              card: '#f4ecd8',
+              pin: '#dc2626',
+              accent: '#d97706',
+              dark: '#1c1917',
+              gold: '#f59e0b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* สไตล์กระดานคดีแบบนักสืบ */
+    body {
+      background-color: #12100e;
+      background-image: radial-gradient(#26201a 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .corkboard {
+      background: #b58957 radial-gradient(circle, rgba(255,255,255,0.1) 10%, transparent 20%);
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.6), 0 10px 25px rgba(0,0,0,0.7);
+      border: 12px solid #3e2716;
+    }
+    .polaroid {
+      box-shadow: 0 8px 16px rgba(0,0,0,0.35);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .polaroid.selected {
+      transform: translateY(-12px) scale(1.05);
+      box-shadow: 0 0 0 3px #f59e0b, 0 15px 25px rgba(245, 158, 11, 0.4);
+    }
+    .polaroid.compared {
+      box-shadow: 0 0 0 3px #38bdf8, 0 15px 25px rgba(56, 189, 248, 0.4);
+    }
+    .polaroid.sorted {
+      border-color: #22c55e;
+      background-color: #ecfdf5;
+    }
+    .tape {
+      background: rgba(255,255,255,0.6);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .pin {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    /* ปรับแต่ง Scrollbar สำหรับ Code Viewer */
+    pre::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    pre::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="text-stone-100 min-h-screen flex flex-col font-sans select-none">
+
+  <!-- Header แถบหัวเรื่องของเกมนักสืบ -->
+  <header class="bg-stone-900 border-b border-stone-800 px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">🕵️‍♂️</span>
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold tracking-wide text-amber-400 font-mono flex items-center gap-2">
+          DETECTIVE SORT <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40 font-normal">แฟ้มคดีปริศนา</span>
+        </h1>
+        <p class="text-xs text-stone-400">กู้คืนหลักฐานคดีอาชญากรรมด้วยขั้นตอนวิธี Sorting Algorithm</p>
+      </div>
+    </div>
+
+    <!-- ปุ่มเลือกคดี (เลือก Algorithm) และเครื่องมือ -->
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="bg-stone-800 p-1 rounded-lg border border-stone-700 flex text-xs">
+        <button id="btnCaseBubble" onclick="switchCase('bubble')" class="px-3 py-1.5 rounded font-semibold transition bg-amber-600 text-white shadow">
+          📁 คดีที่ 1: Bubble Sort (ลำดับเวลา)
+        </button>
+        <button id="btnCaseSelection" onclick="switchCase('selection')" class="px-3 py-1.5 rounded font-semibold transition text-stone-400 hover:text-stone-200">
+          📁 คดีที่ 2: Selection Sort (ผู้ต้องสงสัย)
+        </button>
+      </div>
+
+      <!-- ปุ่มเปิดกล่องดูโค้ดอัลกอริทึม -->
+      <button onclick="openModal('codeModal')" class="bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-600 px-3 py-1.5 rounded text-xs flex items-center gap-1.5 font-medium transition shadow">
+        <span>💻</span> สมุดโค้ดอัลกอริทึม
+      </button>
+
+      <!-- ปุ่มกติกา -->
+      <button onclick="openModal('rulesModal')" class="bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-600 px-3 py-1.5 rounded text-xs flex items-center gap-1.5 font-medium transition shadow">
+        <span>📜</span> กติกาคดี
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard / บอร์ดสืบสวน -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-5">
+    
+    <!-- แถบแสดงข้อมูลสถานะคดี (Case Status Header) -->
+    <section class="bg-stone-900/90 border border-stone-800 rounded-xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-4">
+      <div class="flex-1 min-w-[280px]">
+        <div class="flex items-center gap-2">
+          <span class="text-xs uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 font-bold">CASE FILE #<span id="caseNumber">01</span></span>
+          <h2 id="caseTitle" class="text-lg font-bold text-amber-200 font-mono">แกะรอยไทม์ไลน์ภาพถ่ายที่ถูกสลับ (Bubble Sort)</h2>
+        </div>
+        <p id="caseMission" class="text-xs text-stone-400 mt-1">
+          กติกา: กู้คืนลำดับเวลาจากน้อยไปมาก สลับได้เฉพาะหลักฐานที่ "อยู่ติดกันเท่านั้น"
+        </p>
+      </div>
+
+      <!-- สถิติการสืบสวน (Stats Counter) -->
+      <div class="flex items-center gap-4 bg-stone-950/70 border border-stone-800 px-4 py-2 rounded-lg font-mono text-xs">
+        <div class="text-center">
+          <div class="text-stone-400">เปรียบเทียบ (Compare)</div>
+          <div id="statComparisons" class="text-base font-bold text-sky-400">0 ครั้ง</div>
+        </div>
+        <div class="w-px h-7 bg-stone-800"></div>
+        <div class="text-center">
+          <div class="text-stone-400">สลับตำแหน่ง (Swap)</div>
+          <div id="statSwaps" class="text-base font-bold text-amber-400">0 ครั้ง</div>
+        </div>
+        <div class="w-px h-7 bg-stone-800"></div>
+        <div class="text-center">
+          <div class="text-stone-400">ข้อผิดพลาด</div>
+          <div id="statMistakes" class="text-base font-bold text-rose-400">0/3</div>
+        </div>
+      </div>
+
+      <!-- ปุ่มควบคุมการทำงาน -->
+      <div class="flex items-center gap-2">
+        <button onclick="resetGame()" class="bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs px-3 py-2 rounded font-medium border border-stone-700 flex items-center gap-1">
+          🔄 สุ่มหลักฐานใหม่
+        </button>
+        <button id="btnStep" onclick="stepAlgorithm()" class="bg-sky-700 hover:bg-sky-600 text-white text-xs px-3 py-2 rounded font-medium flex items-center gap-1 shadow">
+          ▶ ก้าวถัดไป (Step)
+        </button>
+        <button id="btnAuto" onclick="toggleAutoRun()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-2 rounded font-medium flex items-center gap-1 shadow">
+          ⚡ เล่นอัตโนมัติ
+        </button>
+      </div>
+    </section>
+
+    <!-- กระดานก๊อกสืบสวน (Corkboard Evidence Board) -->
+    <section class="corkboard rounded-2xl p-6 md:p-8 min-h-[380px] flex flex-col justify-between relative overflow-hidden">
+      
+      <!-- ป้ายประกาศคำแนะนำของสารวัตร -->
+      <div class="flex justify-between items-center bg-stone-900/85 backdrop-blur-sm px-4 py-2.5 rounded-lg border border-amber-900/50 shadow text-xs">
+        <div class="flex items-center gap-2 text-stone-200">
+          <span class="text-base">📢</span>
+          <span id="guideText">คลิกเลือกการ์ดใบแรก แล้วคลิกการ์ดใบที่สองเพื่อตรวจสอบและสลับตำแหน่ง</span>
+        </div>
+        <div id="zoneIndicator" class="font-mono text-xs text-amber-300 font-semibold hidden md:block">
+          ขอบเขตอัลกอริทึม: Active
+        </div>
+      </div>
+
+      <!-- โซนวางการ์ดหลักฐาน (Evidence Cards Container) -->
+      <div id="cardContainer" class="flex flex-wrap md:flex-nowrap items-center justify-center gap-3 md:gap-4 my-8 z-10">
+        <!-- การ์ดจะถูกเรนเดอร์ด้วย JavaScript -->
+      </div>
+
+      <!-- แถบอธิบายสัญลักษณ์และเครื่องหมายสี -->
+      <div class="bg-stone-950/80 rounded-lg px-4 py-2 border border-stone-800 flex flex-wrap items-center justify-center gap-6 text-[11px] text-stone-300">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> กำลังเลือก (Selected)
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-full bg-sky-400 inline-block"></span> กำลังเปรียบเทียบ (Comparing)
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> ลำดับถูกต้องแล้ว (Sorted)
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> ค่าต่ำสุดในรอบ (Min Found)
+        </div>
+      </div>
+    </section>
+
+    <!-- กล่องบันทึก Log การสืบสวน (Detective Log) -->
+    <section class="bg-stone-900/80 border border-stone-800 rounded-xl p-3 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-stone-400">
+        <span class="font-mono font-bold text-amber-400">INVESTIGATION LOG:</span>
+        <span id="logText" class="text-stone-300 font-mono">เตรียมพร้อมเปิดแฟ้มคดี...</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <label for="speedRange" class="text-stone-400 text-xs">ความเร็ว Auto Run:</label>
+        <input id="speedRange" type="range" min="300" max="1500" value="800" step="100" class="accent-amber-500 cursor-pointer w-28">
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-stone-950 border-t border-stone-800 py-3 text-center text-xs text-stone-500">
+    Sorting Algorithm Educational Game • Single-file HTML Project
+  </footer>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal 1: สมุดโค้ดอัลกอริทึม (สำหรับเปิดชี้อธิบายในวิดีโอ) -->
+  <div id="codeModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-stone-900 border border-stone-700 w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="p-4 border-b border-stone-800 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">💻</span>
+          <h3 class="font-bold text-amber-400 font-mono">สมุดโค้ดสอบสวน (Algorithm Inspector)</h3>
+        </div>
+        <button onclick="closeModal('codeModal')" class="text-stone-400 hover:text-white text-lg font-mono">✕</button>
+      </div>
+
+      <!-- เมนูสลับโค้ด Bubble / Selection -->
+      <div class="px-4 pt-3 flex gap-2 border-b border-stone-800 text-xs">
+        <button id="btnTabBubbleCode" onclick="showCodeTab('bubble')" class="px-3 py-1.5 rounded-t font-semibold bg-stone-800 text-amber-300 border-t border-x border-stone-700">
+          Bubble Sort Function
+        </button>
+        <button id="btnTabSelectionCode" onclick="showCodeTab('selection')" class="px-3 py-1.5 rounded-t font-semibold text-stone-400 hover:text-stone-200">
+          Selection Sort Function
+        </button>
+      </div>
+
+      <!-- กล่องแสดงโค้ดพร้อมคอมเมนต์อธิบาย -->
+      <div class="p-4 overflow-y-auto flex-1 font-mono text-xs bg-stone-950 text-stone-300">
+        
+        <!-- โค้ด Bubble Sort -->
+        <pre id="codeViewBubble" class="leading-relaxed whitespace-pre-wrap"><code><span class="text-emerald-400">// ========================================================
+// 1. BUBBLE SORT ALGORITHM (อัลกอริทึมจัดเรียงแบบฟองสบู่)
+// หลักการ: วนลูปเปรียบเทียบข้อมูล "คู่ที่อยู่ติดกัน" (Adjacent)
+// หากตัวหน้ามากกว่าตัวหลัง จะทำการ Swap สลับตำแหน่ง
+// ค่าที่มากที่สุดจะค่อย ๆ ลอยขึ้นไปอยู่ท้ายอาร์เรย์ในแต่ละรอบ
+// ========================================================</span>
+
+<span class="text-purple-400">function</span> <span class="text-blue-400">bubbleSort</span>(arr) {
+  <span class="text-purple-400">const</span> n = arr.length;
+  <span class="text-purple-400">let</span> swapped;
+
+  <span class="text-emerald-400">// Outer Loop: ควบคุมจำนวนรอบ (Pass) ทั้งหมด n-1 รอบ</span>
+  <span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> i = 0; i &lt; n - 1; i++) {
+    swapped = <span class="text-amber-400">false</span>;
+
+    <span class="text-emerald-400">// Inner Loop: เปรียบเทียบทีละคู่จากต้นแถวจนถึงขอบเขตที่ยังไม่จัดเรียง</span>
+    <span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> j = 0; j &lt; n - i - 1; j++) {
+      
+      <span class="text-emerald-400">// เปรียบเทียบ: หากตัวหน้า (arr[j]) มีค่ามากกว่าตัวหลัง (arr[j+1])</span>
+      <span class="text-purple-400">if</span> (arr[j].value &gt; arr[j + 1].value) {
+        
+        <span class="text-emerald-400">// ทำการสลับตำแหน่ง (Swap)</span>
+        <span class="text-purple-400">const</span> temp = arr[j];
+        arr[j] = arr[j + 1];
+        arr[j + 1] = temp;
+
+        swapped = <span class="text-amber-400">true</span>; <span class="text-emerald-400">// ทำเครื่องหมายว่ามีการสลับเกิดขึ้น</span>
+      }
+    }
+
+    <span class="text-emerald-400">// การเพิ่มประสิทธิภาพ: หากรอบนี้ไม่มีการ Swap เลย แปลว่าเรียงเสร็จสมบูรณ์แล้ว</span>
+    <span class="text-purple-400">if</span> (!swapped) <span class="text-purple-400">break</span>;
+  }
+  <span class="text-purple-400">return</span> arr;
+}</code></pre>
+
+        <!-- โค้ด Selection Sort -->
+        <pre id="codeViewSelection" class="leading-relaxed whitespace-pre-wrap hidden"><code><span class="text-emerald-400">// ========================================================
+// 2. SELECTION SORT ALGORITHM (อัลกอริทึมจัดเรียงแบบเลือก)
+// หลักการ: แบ่งอาร์เรย์เป็น 2 ส่วน คือ "Sorted" และ "Unsorted"
+// ในแต่ละรอบจะสแกนหาตัวที่มีค่าน้อยที่สุด (Minimum) ในส่วน Unsorted
+// แล้วนำมาสลับ (Swap) กับตำแหน่งหัวแถวของส่วน Unsorted นั้น
+// ========================================================</span>
+
+<span class="text-purple-400">function</span> <span class="text-blue-400">selectionSort</span>(arr) {
+  <span class="text-purple-400">const</span> n = arr.length;
+
+  <span class="text-emerald-400">// Outer Loop: เลื่อนขอบเขตของส่วนที่จัดเรียงแล้วไปทีละช่อง</span>
+  <span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> i = 0; i &lt; n - 1; i++) {
+    
+    <span class="text-emerald-400">// กำหนดสมมติฐานว่าตำแหน่งเริ่มต้น i มีค่าน้อยที่สุด</span>
+    <span class="text-purple-400">let</span> minIndex = i;
+
+    <span class="text-emerald-400">// Inner Loop: สแกนหาตำแหน่งที่ค่าน้อยที่สุดจริง ๆ ในส่วนที่เหลือ (i+1 ถึง n-1)</span>
+    <span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> j = i + 1; j &lt; n; j++) {
+      <span class="text-purple-400">if</span> (arr[j].value &lt; arr[minIndex].value) {
+        minIndex = j; <span class="text-emerald-400">// จดจำ Index ที่พบค่าน้อยกว่า</span>
+      }
+    }
+
+    <span class="text-emerald-400">// หากพบตัวที่น้อยกว่าตำแหน่ง i จริง ให้ทำการ Swap สลับเข้าหัวแถว</span>
+    <span class="text-purple-400">if</span> (minIndex !== i) {
+      <span class="text-purple-400">const</span> temp = arr[i];
+      arr[i] = arr[minIndex];
+      arr[minIndex] = temp;
+    }
+  }
+  <span class="text-purple-400">return</span> arr;
+}</code></pre>
+
+      </div>
+      <div class="p-3 border-t border-stone-800 text-right bg-stone-900">
+        <button onclick="closeModal('codeModal')" class="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-1.5 rounded text-xs">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: กติกาและแนวคิดของเกม -->
+  <div id="rulesModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-stone-900 border border-stone-700 w-full max-w-xl rounded-xl shadow-2xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-amber-400 flex items-center gap-2 font-mono">
+          <span>📜</span> แนวคิดและกติกาการสืบสวน
+        </h3>
+        <button onclick="closeModal('rulesModal')" class="text-stone-400 hover:text-white font-mono">✕</button>
+      </div>
+      <div class="space-y-3 text-stone-300 text-xs leading-relaxed">
+        <p><strong class="text-amber-300">🔍 แนวคิดของเกม (Core Concept):</strong><br>
+        ผู้เล่นรับบทเป็นนักสืบที่ต้องจัดเรียงลำดับกระดานแฟ้มคดีที่คนร้ายสับเปลี่ยนไว้ โดยใช้อัลกอริทึมการจัดเรียง (Sorting Algorithm) เป็นกฎเกณฑ์ตายตัวในการขยับข้อมูล</p>
+        
+        <p><strong class="text-amber-300">📁 คดีที่ 1 (Bubble Sort):</strong><br>
+        ผู้เล่นสามารถสลับตำแหน่งการ์ดได้ <u>เฉพาะคู่ที่อยู่ติดกันเท่านั้น</u> โดยต้องเปรียบเทียบและสลับเพื่อดันหลักฐานที่มีเวลาเกิดขึ้นทีหลัง (ค่ามากสุด) ไปไว้ด้านขวาทีละรอบ</p>
+
+        <p><strong class="text-amber-300">📁 คดีที่ 2 (Selection Sort):</strong><br>
+        กระดานจะแบ่งเป็นโซนจัดเรียงแล้วและยังไม่จัดเรียง ผู้เล่นต้องค้นหาการ์ดที่ <u>มีค่าน้อยที่สุด</u> ในโซนที่ยังไม่ตรวจ แล้วสลับเข้าสู่หัวแถวเพื่อขยายโซนที่เสร็จสิ้นทีละตำแหน่ง</p>
+
+        <p><strong class="text-amber-300">🏆 เงื่อนไขชนะ/แพ้:</strong><br>
+        - <strong>ชนะ (Case Closed):</strong> เรียงลำดับถูกต้องครบทุกใบ<br>
+        - <strong>แพ้ (Cold Case):</strong> สลับผิดกฎของอัลกอริทึมครบ 3 ครั้ง พลังชีวิตนักสืบจะหมดลง</p>
+      </div>
+      <div class="mt-6 text-right">
+        <button onclick="closeModal('rulesModal')" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded text-xs font-semibold">
+          รับทราบ เข้าใจแล้ว
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: ปิดคดีสำเร็จ (Win Modal) -->
+  <div id="winModal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-stone-900 border-2 border-amber-500 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center">
+      <div class="text-5xl mb-2">🏆</div>
+      <h3 class="text-2xl font-bold text-amber-400 font-mono tracking-wider">CASE CLOSED!</h3>
+      <p class="text-xs text-stone-300 mt-1">คลี่คลายคดีสำเร็จ! หลักฐานทุกชิ้นได้รับการจัดเรียงอย่างสมบูรณ์แบบ</p>
+
+      <div class="bg-stone-950 border border-stone-800 rounded-xl p-4 my-5 grid grid-cols-2 gap-3 text-xs font-mono">
+        <div class="text-stone-400">จำนวนการเปรียบเทียบ:</div>
+        <div id="winComparisons" class="text-sky-400 font-bold text-right">0 ครั้ง</div>
+        <div class="text-stone-400">จำนวนการสลับ (Swaps):</div>
+        <div id="winSwaps" class="text-amber-400 font-bold text-right">0 ครั้ง</div>
+        <div class="text-stone-400">อัลกอริทึมที่ใช้:</div>
+        <div id="winAlgo" class="text-emerald-400 font-bold text-right">Bubble Sort</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="closeModal('winModal'); resetGame();" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded-lg text-xs font-semibold shadow">
+          เล่นคดีนี้อีกครั้ง
+        </button>
+        <button onclick="toggleCaseFromWin()" class="flex-1 bg-stone-700 hover:bg-stone-600 text-stone-200 py-2 rounded-lg text-xs font-semibold shadow">
+          สลับไปอีกคดี
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    /* ========================================================
+     * ระบบเสียงเอฟเฟกต์สังเคราะห์ (Web Audio API)
+     * ไม่ต้องโหลดไฟล์เสียงภายนอก เล่นได้ทุกเบราว์เซอร์ทันที
+     * ======================================================== */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+    const soundClick = () => playBeep(520, 'sine', 0.08);
+    const soundSwap = () => playBeep(330, 'triangle', 0.18);
+    const soundError = () => playBeep(180, 'sawtooth', 0.25);
+    const soundWin = () => {
+      [440, 554, 659, 880].forEach((f, idx) => {
+        setTimeout(() => playBeep(f, 'sine', 0.25), idx * 120);
+      });
+    };
+
+    /* ========================================================
+     * ข้อมูลหลักและ State ของเกม
+     * ======================================================== */
+    let currentCase = 'bubble'; // 'bubble' หรือ 'selection'
+    let evidenceList = [];
+    let selectedIndices = [];
+    let comparisonsCount = 0;
+    let swapsCount = 0;
+    let mistakesCount = 0;
+    const maxMistakes = 3;
+
+    // State สำหรับ Auto / Step Execution
+    let isAutoRunning = false;
+    let autoInterval = null;
+    let stepState = {
+      i: 0,
+      j: 0,
+      minIndex: 0,
+      phase: 'compare' // 'compare' | 'swap'
+    };
+
+    // ชุดข้อมูลจำลองสำหรับ 2 คดี
+    const evidenceThemes = {
+      bubble: [
+        { title: "กล้องหน้าร้าน", icon: "📷", val: 1410, label: "14:10 น." },
+        { title: "ใบเสร็จกาแฟ", icon: "🧾", val: 1435, label: "14:35 น." },
+        { title: "พยานพบเห็น", icon: "👁️", val: 1520, label: "15:20 น." },
+        { title: "คีย์การ์ดเปิด", icon: "💳", val: 1550, label: "15:50 น." },
+        { title: "เสียงสัญญาณเตือน", icon: "🚨", val: 1615, label: "16:15 น." },
+        { title: "โทรศัพท์แจ้งความ", icon: "📞", val: 1640, label: "16:40 น." }
+      ],
+      selection: [
+        { title: "คุณประเสริฐ (พ่อบ้าน)", icon: "🤵", val: 15, label: "สงสัย 15%" },
+        { title: "นายสมชาย (คนสวน)", icon: "🧤", val: 35, label: "สงสัย 35%" },
+        { title: "ทนายวิชัย (ที่ปรึกษา)", icon: "💼", val: 55, label: "สงสัย 55%" },
+        { title: "คุณหญิงนวล (ภรรยา)", icon: "💍", val: 75, label: "สงสัย 75%" },
+        { title: "เชฟวิโรจน์ (พ่อครัว)", icon: "🔪", val: 88, label: "สงสัย 88%" },
+        { title: "หมวดชาติ (รปภ.)", icon: "🔦", val: 95, label: "สงสัย 95%" }
+      ]
+    };
+
+    /* ========================================================
+     * ฟังก์ชันเริ่มต้นและสลับคดี
+     * ======================================================== */
+    function switchCase(caseType) {
+      currentCase = caseType;
+      stopAutoRun();
+
+      const btnBubble = document.getElementById('btnCaseBubble');
+      const btnSelection = document.getElementById('btnCaseSelection');
+      const caseNumber = document.getElementById('caseNumber');
+      const caseTitle = document.getElementById('caseTitle');
+      const caseMission = document.getElementById('caseMission');
+
+      if (caseType === 'bubble') {
+        btnBubble.className = "px-3 py-1.5 rounded font-semibold transition bg-amber-600 text-white shadow";
+        btnSelection.className = "px-3 py-1.5 rounded font-semibold transition text-stone-400 hover:text-stone-200";
+        caseNumber.textContent = "01";
+        caseTitle.textContent = "แกะรอยไทม์ไลน์ภาพถ่ายที่ถูกสลับ (Bubble Sort)";
+        caseMission.textContent = 'กติกา Bubble Sort: สลับได้เฉพาะหลักฐานที่ "อยู่ติดกันเท่านั้น" เพื่อดันเวลาที่เกิดทีหลังไปท้ายแถว';
+      } else {
+        btnSelection.className = "px-3 py-1.5 rounded font-semibold transition bg-amber-600 text-white shadow";
+        btnBubble.className = "px-3 py-1.5 rounded font-semibold transition text-stone-400 hover:text-stone-200";
+        caseNumber.textContent = "02";
+        caseTitle.textContent = "คัดกรองผู้ต้องสงสัยจากน้อยไปมาก (Selection Sort)";
+        caseMission.textContent = 'กติกา Selection Sort: ค้นหาผู้ต้องสงสัยที่ค่าน้อยที่สุดในโซน Unsorted แล้วสลับมาไว้หัวแถว';
+      }
+
+      resetGame();
+    }
+
+    function resetGame() {
+      stopAutoRun();
+      comparisonsCount = 0;
+      swapsCount = 0;
+      mistakesCount = 0;
+      selectedIndices = [];
+      updateStats();
+
+      // นำชุดข้อมูลมา Shuffle สุ่มลำดับ
+      const template = evidenceThemes[currentCase];
+      evidenceList = template.map(item => ({ ...item }));
+      // Fisher-Yates Shuffle
+      for (let i = evidenceList.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [evidenceList[i], evidenceList[j]] = [evidenceList[j], evidenceList[i]];
+      }
+
+      // รีเซ็ตตัวแปรนับสเต็ปของอัลกอริทึม
+      resetStepState();
+      renderBoard();
+      log(`สุ่มข้อมูลหลักฐานใหม่สำหรับ ${currentCase === 'bubble' ? 'Bubble Sort' : 'Selection Sort'}`);
+      setGuide(currentCase === 'bubble' 
+        ? "กติกา: คลิกเลือกการ์ด 2 ใบที่อยู่ติดกัน หากใบหน้ามากกว่าใบหลัง ระบบจะทำการสลับ"
+        : "กติกา: เลือกการ์ดที่มีค่าน้อยที่สุดในโซนที่ยังไม่เรียง แล้วสลับกับตำแหน่งหัวแถว");
+    }
+
+    function resetStepState() {
+      stepState = {
+        i: 0,
+        j: 0,
+        minIndex: 0,
+        phase: 'compare'
+      };
+    }
+
+    /* ========================================================
+     * การวาดการ์ดหลักฐานบนหน้าจอ (Rendering)
+     * ======================================================== */
+    function renderBoard(highlightIndices = [], compareIndices = [], minFoundIndex = null) {
+      const container = document.getElementById('cardContainer');
+      container.innerHTML = '';
+
+      evidenceList.forEach((item, index) => {
+        const card = document.createElement('div');
+        const isSelected = selectedIndices.includes(index) || highlightIndices.includes(index);
+        const isComparing = compareIndices.includes(index);
+        const isMin = (index === minFoundIndex);
+
+        // ตรวจสอบว่าใบนี้ถือว่าเรียงถูกต้องถาวรแล้วหรือไม่
+        let isSorted = false;
+        if (currentCase === 'bubble') {
+          // Bubble Sort: ตัวท้ายๆ ที่ผ่านรอบแล้วจะ sorted
+          if (index >= evidenceList.length - stepState.i && stepState.i > 0) isSorted = true;
+        } else {
+          // Selection Sort: ตัวหน้าๆ ที่ i ผ่านไปแล้วจะ sorted
+          if (index < stepState.i) isSorted = true;
+        }
+
+        // สถานะสีและคลาส
+        let borderClass = 'border-stone-400';
+        let bgClass = 'bg-[#f8f3e6] text-stone-900';
+
+        if (isSelected) borderClass = 'border-amber-500 ring-4 ring-amber-500/50';
+        if (isComparing) borderClass = 'border-sky-500 ring-4 ring-sky-500/50';
+        if (isMin) borderClass = 'border-rose-500 ring-4 ring-rose-500/50';
+        if (isSorted) {
+          borderClass = 'border-green-600 bg-emerald-50';
+        }
+
+        card.className = `polaroid relative w-28 md:w-36 p-2 rounded-sm border-2 ${borderClass} ${bgClass} cursor-pointer flex flex-col items-center justify-between transition-all transform hover:-translate-y-1`;
+        card.onclick = () => onCardClicked(index);
+
+        card.innerHTML = `
+          <!-- หมุดปักกระดาน -->
+          <div class="pin absolute -top-2 left-1/2 -translate-x-1/2"></div>
+          
+          <!-- แถบเทปด้านบน -->
+          <div class="tape w-12 h-3 -mt-1 mb-2 rotate-[-2deg] opacity-70"></div>
+
+          <!-- รูปภาพ/ไอคอนหลักฐาน -->
+          <div class="w-16 h-16 md:w-20 md:h-20 bg-stone-200/90 rounded border border-stone-300 flex items-center justify-center text-3xl md:text-4xl shadow-inner mb-2">
+            ${item.icon}
+          </div>
+
+          <!-- ข้อมูลหลักฐาน -->
+          <div class="w-full text-center">
+            <div class="text-[10px] text-stone-500 font-mono">INDEX [${index}]</div>
+            <div class="text-xs font-bold truncate text-stone-800">${item.title}</div>
+            <div class="mt-1 font-mono text-xs md:text-sm font-extrabold text-amber-900 bg-amber-100/80 py-0.5 rounded border border-amber-300">
+              ${item.label}
+            </div>
+          </div>
+
+          <!-- ป้ายสถานะพิเศษ -->
+          ${isSorted ? '<span class="absolute bottom-1 right-1 text-[10px] text-green-700 font-bold font-mono">✓ SORTED</span>' : ''}
+          ${isMin ? '<span class="absolute top-1 right-1 text-[9px] bg-rose-600 text-white px-1 rounded font-mono">MIN</span>' : ''}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    /* ========================================================
+     * กลไกการเล่นของผู้เล่น (Interactive Player Gameplay)
+     * ======================================================== */
+    function onCardClicked(index) {
+      if (isAutoRunning) return; // ล็อกไม่ให้กดแทรกขณะ Auto Run
+      soundClick();
+
+      // กรณีเลือกซ้ำใบเดิม ให้ยกเลิก
+      if (selectedIndices.includes(index)) {
+        selectedIndices = selectedIndices.filter(i => i !== index);
+        renderBoard();
+        return;
+      }
+
+      selectedIndices.push(index);
+      renderBoard();
+
+      // เมื่อเลือกครบ 2 ใบ จะทำการตรวจสอบตามกติกาของแต่ละ Algorithm
+      if (selectedIndices.length === 2) {
+        const [first, second] = selectedIndices;
+        handleManualAction(first, second);
+        selectedIndices = [];
+      }
+    }
+
+    function handleManualAction(idxA, idxB) {
+      comparisonsCount++;
+      updateStats();
+
+      // ===================================
+      // กติกาคดีที่ 1: BUBBLE SORT
+      // ===================================
+      if (currentCase === 'bubble') {
+        // ต้องเป็นการ์ดที่อยู่ติดกันเท่านั้น (Adjacent check)
+        const isAdjacent = Math.abs(idxA - idxB) === 1;
+
+        if (!isAdjacent) {
+          triggerMistake(`ผิดกฎ Bubble Sort! คุณต้องเปรียบเทียบและสลับเฉพาะ "คู่ที่อยู่ติดกันเท่านั้น" (เช่น ช่อง ${idxA} กับ ${idxA + 1})`);
+          renderBoard();
+          return;
+        }
+
+        const left = Math.min(idxA, idxB);
+        const right = Math.max(idxA, idxB);
+
+        // ตรวจสอบว่าใบซ้ายมีค่ามากกว่าใบขวาหรือไม่
+        if (evidenceList[left].val > evidenceList[right].val) {
+          // สลับตำแหน่ง (Swap)
+          soundSwap();
+          [evidenceList[left], evidenceList[right]] = [evidenceList[right], evidenceList[left]];
+          swapsCount++;
+          updateStats();
+          log(`Bubble Swap: สลับหลักฐานช่อง [${left}] (${evidenceList[right].label}) ⇄ [${right}] (${evidenceList[left].label})`);
+          renderBoard([], [left, right]);
+          checkWinCondition();
+        } else {
+          // ค่าเรียงถูกต้องอยู่แล้ว ไม่ต้องสลับ
+          log(`Bubble Check: ช่อง [${left}] และ [${right}] ลำดับถูกต้องแล้ว ไม่ต้องสลับ`);
+          renderBoard([], [left, right]);
+        }
+      } 
+      // ===================================
+      // กติกาคดีที่ 2: SELECTION SORT
+      // ===================================
+      else {
+        // ใน Selection Sort การสลับจะต้องเกี่ยวข้องกับตำแหน่งหัวแถวของส่วน Unsorted (stepState.i)
+        const targetHead = stepState.i;
+        if (idxA !== targetHead && idxB !== targetHead) {
+          triggerMistake(`ผิดกฎ Selection Sort! การสลับจะต้องสลับค่าต่ำสุดเข้าสู่ตำแหน่งหัวแถวส่วน Unsorted (ช่อง [${targetHead}])`);
+          renderBoard();
+          return;
+        }
+
+        const otherIdx = (idxA === targetHead) ? idxB : idxA;
+        
+        // ตรวจสอบว่าใบที่นำมาสลับ เป็นใบที่มีค่าน้อยที่สุดในโซนที่เหลือจริงหรือไม่
+        let actualMinIdx = targetHead;
+        for (let k = targetHead; k < evidenceList.length; k++) {
+          if (evidenceList[k].val < evidenceList[actualMinIdx].val) {
+            actualMinIdx = k;
+          }
+        }
+
+        if (otherIdx !== actualMinIdx && evidenceList[otherIdx].val > evidenceList[actualMinIdx].val) {
+          triggerMistake(`ยังไม่ใช่ค่าน้อยที่สุด! มีผู้ต้องสงสัยคนอื่นในโซน Unsorted ที่มีค่าน่าสงสัยน้อยกว่าใบนี้`);
+          renderBoard();
+          return;
+        }
+
+        // ทำการสลับตำแหน่ง
+        soundSwap();
+        [evidenceList[targetHead], evidenceList[otherIdx]] = [evidenceList[otherIdx], evidenceList[targetHead]];
+        swapsCount++;
+        stepState.i++; // เลื่อนขอบเขต Sorted
+        updateStats();
+        log(`Selection Swap: นำค่าน้อยที่สุด [${otherIdx}] สลับมาวางหัวแถวช่อง [${targetHead}]`);
+        renderBoard([], [targetHead, otherIdx]);
+        checkWinCondition();
+      }
+    }
+
+    function triggerMistake(msg) {
+      soundError();
+      mistakesCount++;
+      updateStats();
+      log(`⚠️ เตือน: ${msg}`);
+      setGuide(`❌ ${msg}`);
+
+      if (mistakesCount >= maxMistakes) {
+        alert("🚨 พลังชีวิตนักสืบหมดลง! คุณทำผิดกฎอัลกอริทึมเกิน 3 ครั้ง ต้องเริ่มสืบสวนใหม่");
+        resetGame();
+      }
+    }
+
+    /* ========================================================
+     * ระบบรันอัลกอริทึม Step-by-Step & Auto Run (สำหรับสาธิต)
+     * ======================================================== */
+    function stepAlgorithm() {
+      if (checkWinCondition(true)) return;
+
+      if (currentCase === 'bubble') {
+        runBubbleStep();
+      } else {
+        runSelectionStep();
+      }
+    }
+
+    // Step Logic: Bubble Sort
+    function runBubbleStep() {
+      const n = evidenceList.length;
+
+      if (stepState.i < n - 1) {
+        const j = stepState.j;
+
+        if (stepState.phase === 'compare') {
+          comparisonsCount++;
+          updateStats();
+          log(`Bubble Sort: เปรียบเทียบ [${j}] (${evidenceList[j].label}) กับ [${j + 1}] (${evidenceList[j + 1].label})`);
+          
+          if (evidenceList[j].val > evidenceList[j + 1].val) {
+            setGuide(`พบว่า [${j}] > [${j + 1}] -> เตรียมสลับตำแหน่ง (Swap)`);
+            renderBoard([], [j, j + 1]);
+            stepState.phase = 'swap';
+          } else {
+            setGuide(`[${j}] <= [${j + 1}] ลำดับถูกต้องแล้ว -> ข้ามไปคู่ถัดไป`);
+            renderBoard([], [j, j + 1]);
+            // ไปตัวถัดไป
+            stepState.j++;
+            if (stepState.j >= n - stepState.i - 1) {
+              stepState.j = 0;
+              stepState.i++;
+            }
+          }
+        } else if (stepState.phase === 'swap') {
+          soundSwap();
+          [evidenceList[j], evidenceList[j + 1]] = [evidenceList[j + 1], evidenceList[j]];
+          swapsCount++;
+          updateStats();
+          log(`Bubble Sort: สลับ [${j}] ⇄ [${j + 1}] เรียบร้อย`);
+          renderBoard([j + 1]);
+
+          stepState.phase = 'compare';
+          stepState.j++;
+          if (stepState.j >= n - stepState.i - 1) {
+            stepState.j = 0;
+            stepState.i++;
+          }
+        }
+      }
+
+      checkWinCondition();
+    }
+
+    // Step Logic: Selection Sort
+    function runSelectionStep() {
+      const n = evidenceList.length;
+
+      if (stepState.i < n - 1) {
+        if (stepState.j === 0) {
+          stepState.j = stepState.i + 1;
+          stepState.minIndex = stepState.i;
+        }
+
+        if (stepState.j < n) {
+          comparisonsCount++;
+          updateStats();
+          log(`Selection Sort: ค้นหาค่าน้อยสุด เปรียบเทียบ [${stepState.j}] กับ Min ปัจจุบัน [${stepState.minIndex}]`);
+
+          if (evidenceList[stepState.j].val < evidenceList[stepState.minIndex].val) {
+            stepState.minIndex = stepState.j;
+            log(`🎯 พบค่าน้อยสุดตัวใหม่ที่ Index [${stepState.minIndex}] (${evidenceList[stepState.minIndex].label})`);
+          }
+
+          renderBoard([], [stepState.j], stepState.minIndex);
+          stepState.j++;
+        } else {
+          // สแกนจนจบแถวแล้ว ทำการ Swap สลับเข้าหัวแถว
+          if (stepState.minIndex !== stepState.i) {
+            soundSwap();
+            [evidenceList[stepState.i], evidenceList[stepState.minIndex]] = [evidenceList[stepState.minIndex], evidenceList[stepState.i]];
+            swapsCount++;
+            updateStats();
+            log(`Selection Sort: สลับค่าน้อยสุด [${stepState.minIndex}] ไปไว้หัวแถว Unsorted [${stepState.i}]`);
+          } else {
+            log(`Selection Sort: หัวแถว [${stepState.i}] เป็นค่าน้อยที่สุดอยู่แล้ว`);
+          }
+
+          stepState.i++;
+          stepState.j = 0;
+          renderBoard([stepState.i - 1]);
+        }
+      }
+
+      checkWinCondition();
+    }
+
+    function toggleAutoRun() {
+      if (isAutoRunning) {
+        stopAutoRun();
+      } else {
+        startAutoRun();
+      }
+    }
+
+    function startAutoRun() {
+      isAutoRunning = true;
+      const btnAuto = document.getElementById('btnAuto');
+      btnAuto.innerHTML = '⏸ หยุดชั่วคราว';
+      btnAuto.className = 'bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-2 rounded font-medium flex items-center gap-1 shadow';
+
+      const speed = parseInt(document.getElementById('speedRange').value);
+      autoInterval = setInterval(() => {
+        stepAlgorithm();
+      }, speed);
+    }
+
+    function stopAutoRun() {
+      isAutoRunning = false;
+      if (autoInterval) clearInterval(autoInterval);
+      const btnAuto = document.getElementById('btnAuto');
+      btnAuto.innerHTML = '⚡ เล่นอัตโนมัติ';
+      btnAuto.className = 'bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-2 rounded font-medium flex items-center gap-1 shadow';
+    }
+
+    /* ========================================================
+     * การตรวจสอบเงื่อนไขชนะ (Win Condition)
+     * ======================================================== */
+    function checkWinCondition(silent = false) {
+      let isSorted = true;
+      for (let i = 0; i < evidenceList.length - 1; i++) {
+        if (evidenceList[i].val > evidenceList[i + 1].val) {
+          isSorted = false;
+          break;
+        }
+      }
+
+      if (isSorted) {
+        stopAutoRun();
+        if (!silent) {
+          soundWin();
+          renderBoard();
+          document.getElementById('winComparisons').textContent = `${comparisonsCount} ครั้ง`;
+          document.getElementById('winSwaps').textContent = `${swapsCount} ครั้ง`;
+          document.getElementById('winAlgo').textContent = currentCase === 'bubble' ? 'Bubble Sort' : 'Selection Sort';
+          openModal('winModal');
+          log('🎉 ยอดเยี่ยมมาก! คดีได้รับการคลี่คลายอย่างสมบูรณ์แบบ');
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function toggleCaseFromWin() {
+      closeModal('winModal');
+      switchCase(currentCase === 'bubble' ? 'selection' : 'bubble');
+    }
+
+    /* ========================================================
+     * อัปเดต UI, Log, Modal และสถิติ
+     * ======================================================== */
+    function updateStats() {
+      document.getElementById('statComparisons').textContent = `${comparisonsCount} ครั้ง`;
+      document.getElementById('statSwaps').textContent = `${swapsCount} ครั้ง`;
+      document.getElementById('statMistakes').textContent = `${mistakesCount}/${maxMistakes}`;
+    }
+
+    function log(message) {
+      document.getElementById('logText').textContent = message;
+    }
+
+    function setGuide(message) {
+      document.getElementById('guideText').textContent = message;
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function showCodeTab(algo) {
+      const bubblePre = document.getElementById('codeViewBubble');
+      const selectPre = document.getElementById('codeViewSelection');
+      const btnB = document.getElementById('btnTabBubbleCode');
+      const btnS = document.getElementById('btnTabSelectionCode');
+
+      if (algo === 'bubble') {
+        bubblePre.classList.remove('hidden');
+        selectPre.classList.add('hidden');
+        btnB.className = "px-3 py-1.5 rounded-t font-semibold bg-stone-800 text-amber-300 border-t border-x border-stone-700";
+        btnS.className = "px-3 py-1.5 rounded-t font-semibold text-stone-400 hover:text-stone-200";
+      } else {
+        selectPre.classList.remove('hidden');
+        bubblePre.classList.add('hidden');
+        btnS.className = "px-3 py-1.5 rounded-t font-semibold bg-stone-800 text-amber-300 border-t border-x border-stone-700";
+        btnB.className = "px-3 py-1.5 rounded-t font-semibold text-stone-400 hover:text-stone-200";
+      }
+    }
+
+    // เริ่มต้นเกมรอบแรก
+    window.addEventListener('DOMContentLoaded', () => {
+      resetGame();
+    });
+  </script>
+</body>
+</html>
